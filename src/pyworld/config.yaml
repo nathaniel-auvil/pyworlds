@@ -1,0 +1,86 @@
+# Game Settings
+game:
+  initial_resources:
+    metal: 500
+    crystal: 300
+    energy: 100
+  
+  initial_storage:
+    metal: 1000
+    crystal: 1000
+
+  game_speeds:
+    - 0.5
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    - 50.0
+
+# Building Settings
+buildings:
+  metal_mine:
+    base_production: 10
+    cost:
+      metal: 60
+      crystal: 15
+    build_time: 60
+    max_level: 15
+    production_multiplier: 1.25
+    cost_multiplier: 1.5
+
+  crystal_mine:
+    base_production: 8
+    cost:
+      metal: 48
+      crystal: 24
+    build_time: 80
+    max_level: 15
+    production_multiplier: 1.25
+    cost_multiplier: 1.5
+
+  solar_plant:
+    base_production: 20
+    cost:
+      metal: 75
+      crystal: 30
+    build_time: 100
+    max_level: 50
+    production_multiplier: 1.25
+    cost_multiplier: 1.5
+
+  storage_facility:
+    base_capacity: 1000
+    cost:
+      metal: 100
+      crystal: 50
+    build_time: 120
+    max_level: 50
+    capacity_multiplier: 1.0
+    cost_multiplier: 1.5
+
+  shipyard:
+    cost:
+      metal: 400
+      crystal: 200
+    build_time: 300
+    max_level: 50
+    cost_multiplier: 1.5
+
+  research_lab:
+    cost:
+      metal: 200
+      crystal: 400
+    build_time: 240
+    max_level: 50
+    cost_multiplier: 1.5
+
+# UI Settings
+ui:
+  window:
+    title: "Space Empire"
+    width: 1024
+    height: 768
+    padding: 10
+
+  update_interval: 1000  # Resource update interval in milliseconds 
