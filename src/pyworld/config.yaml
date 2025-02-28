@@ -2,12 +2,17 @@
 game:
   initial_resources:
     metal: 500
-    crystal: 300
-    energy: 100
+    gas: 300
+    energy: 1000
+    refined_metal: 0
+    refined_gas: 0
+    credits: 1000
   
   initial_storage:
     metal: 1000
-    crystal: 1000
+    gas: 1000
+    refined_metal: 500
+    refined_gas: 500
 
   game_speeds:
     - 0.5
@@ -17,63 +22,97 @@ game:
     - 10.0
     - 50.0
 
-# Building Settings
-buildings:
-  metal_mine:
-    base_production: 10
-    cost:
-      metal: 60
-      crystal: 15
-    build_time: 60
-    max_level: 15
-    production_multiplier: 1.25
-    cost_multiplier: 1.5
+# Mothership Settings
+mothership:
+  initial_modules:
+    mining_drones:
+      type: collector
+      resource: metal
+      base_collection_rate: 10
+      base_power_usage: 10
+      base_crew_required: 2
+      max_level: 15
+      collection_multiplier: 1.25
+      power_multiplier: 1.1
+      cost_multiplier: 1.5
 
-  crystal_mine:
-    base_production: 8
-    cost:
-      metal: 48
-      crystal: 24
-    build_time: 80
-    max_level: 15
-    production_multiplier: 1.25
-    cost_multiplier: 1.5
+    gas_collector:
+      type: collector
+      resource: gas
+      base_collection_rate: 8
+      base_power_usage: 8
+      base_crew_required: 2
+      max_level: 15
+      collection_multiplier: 1.25
+      power_multiplier: 1.1
+      cost_multiplier: 1.5
 
-  solar_plant:
-    base_production: 20
-    cost:
-      metal: 75
-      crystal: 30
-    build_time: 100
-    max_level: 50
-    production_multiplier: 1.25
-    cost_multiplier: 1.5
+    power_core:
+      type: power
+      base_generation: 100
+      base_crew_required: 1
+      max_level: 20
+      generation_multiplier: 1.2
+      cost_multiplier: 1.5
 
-  storage_facility:
-    base_capacity: 1000
-    cost:
-      metal: 100
-      crystal: 50
-    build_time: 120
-    max_level: 50
-    capacity_multiplier: 1.0
-    cost_multiplier: 1.5
+    cargo_hold:
+      type: storage
+      resource: general
+      base_capacity: 1000
+      base_power_usage: 5
+      base_crew_required: 1
+      max_level: 20
+      capacity_multiplier: 1.5
+      power_multiplier: 1.1
+      cost_multiplier: 1.5
 
-  shipyard:
-    cost:
-      metal: 400
-      crystal: 200
-    build_time: 300
-    max_level: 50
-    cost_multiplier: 1.5
+    crew_quarters:
+      type: life_support
+      base_capacity: 20
+      base_power_usage: 20
+      max_level: 15
+      capacity_multiplier: 1.2
+      power_multiplier: 1.1
+      cost_multiplier: 1.5
 
-  research_lab:
-    cost:
-      metal: 200
-      crystal: 400
-    build_time: 240
-    max_level: 50
-    cost_multiplier: 1.5
+    drone_factory:
+      type: production
+      product: drones
+      base_production_rate: 1
+      base_power_usage: 15
+      base_crew_required: 3
+      max_level: 10
+      production_multiplier: 1.2
+      power_multiplier: 1.1
+      cost_multiplier: 1.5
+
+# Space Station Settings
+station:
+  trade:
+    restock_interval: 3600  # seconds
+    price_fluctuation: 0.1  # 10% max change
+    max_stock: 1000
+    min_stock: 100
+    initial_prices:
+      metal:
+        buy: 8
+        sell: 10
+      gas:
+        buy: 12
+        sell: 15
+      refined_metal:
+        buy: 15
+        sell: 20
+      refined_gas:
+        buy: 20
+        sell: 25
+
+  missions:
+    refresh_interval: 7200  # seconds
+    max_active: 3
+    time_limit_range:
+      min: 3600   # 1 hour
+      max: 86400  # 24 hours
 
 # UI Settings
 ui:
