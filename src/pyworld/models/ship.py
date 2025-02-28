@@ -1,28 +1,51 @@
-from datetime import datetime
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
+from datetime import datetime, timedelta
 
 class Module:
-    def __init__(self, name: str, level: int = 1, module_type: str = None):
+    def __init__(self, name: str, module_type: str):
         self.name = name
-        self.level = level
         self.module_type = module_type
-        self.base_power_usage = 10
-        self.base_crew_required = 2
+        self.level = 1
         self.is_active = True
-        self.current_upgrade = None
+        self.upgrade_start = None
+        self.upgrade_end = None
+        
+    @property
+    def id(self) -> str:
+        """Get the unique identifier for this module"""
+        return self.name.lower().replace(' ', '_')
         
     def power_usage(self) -> float:
         """Calculate power usage at current level"""
-        return self.base_power_usage * (1.1 ** (self.level - 1))
+        base_power = 10  # Base power usage
+        return base_power * (1.1 ** (self.level - 1))
         
     def crew_required(self) -> int:
-        """Calculate crew requirement at current level"""
-        return self.base_crew_required * self.level
+        """Calculate crew required at current level"""
+        base_crew = 2  # Base crew requirement
+        return max(1, int(base_crew * (1.1 ** (self.level - 1))))
         
-    def can_activate(self, ship) -> bool:
-        """Check if module can be activated based on power and crew"""
-        return (ship.available_power >= self.power_usage() and 
-                ship.available_crew >= self.crew_required())
+    def start_upgrade(self):
+        """Start upgrading this module"""
+        if self.upgrade_start is not None:
+            return False
+        
+        self.upgrade_start = datetime.now()
+        self.upgrade_end = self.upgrade_start + timedelta(minutes=5)
+        return True
+        
+    def complete_upgrade(self) -> bool:
+        """Check if upgrade is complete and apply it"""
+        if not self.upgrade_start or not self.upgrade_end:
+            return False
+            
+        if datetime.now() >= self.upgrade_end:
+            self.level += 1
+            self.upgrade_start = None
+            self.upgrade_end = None
+            return True
+            
+        return False
 
 class ResourceCollector(Module):
     def __init__(self, name: str, resource_type: str, base_collection_rate: float):
@@ -63,7 +86,8 @@ class Ship:
             'gas': 0,
             'energy': 0,
             'refined_metal': 0,
-            'refined_gas': 0
+            'refined_gas': 0,
+            'fuel': 1000  # Starting fuel
         }
         self.max_crew = 0
         self.current_crew = 0
@@ -83,6 +107,18 @@ class Ship:
         assigned_crew = sum(module.crew_required() for module in self.modules.values() 
                           if module.is_active)
         return self.current_crew - assigned_crew
+        
+    def get_resource_capacity(self, resource: str) -> float:
+        """Get the storage capacity for a specific resource"""
+        # Find storage modules that can store this resource
+        storage_modules = [
+            m for m in self.modules.values()
+            if isinstance(m, StorageModule) and 
+            (m.resource_type == resource or m.resource_type == "general")
+        ]
+        
+        # Sum up their capacities
+        return sum(m.capacity() for m in storage_modules) if storage_modules else 0
 
 class Mothership(Ship):
     def __init__(self, name: str = "Mothership Alpha"):
@@ -126,6 +162,7 @@ class Mothership(Ship):
             'energy': 1000,
             'refined_metal': 0,
             'refined_gas': 0,
+            'fuel': 1000,  # Starting fuel
             'last_update': datetime.now().timestamp()
         }
         
@@ -134,6 +171,28 @@ class Mothership(Ship):
         self.current_crew = 20
         self.max_power = 1000
         self.power_generation = 500
+        
+        # Resource prices in credits
+        self.resource_prices = {
+            'metal': 1,
+            'gas': 2,
+            'refined_metal': 5,
+            'refined_gas': 10,
+            'fuel': 3
+        }
+    
+    @property
+    def crew(self) -> int:
+        """Get the current crew count"""
+        return self.current_crew
+        
+    @property
+    def power_usage(self) -> float:
+        """Calculate total power usage from all active modules"""
+        return sum(
+            module.power_usage() for module in self.modules.values()
+            if module.is_active
+        )
         
     def update_resources(self, elapsed_time: float, game_speed: float = 1.0):
         """Update resources based on active modules and elapsed time"""
@@ -168,3 +227,11 @@ class Mothership(Ship):
         
         # Update timestamp
         self.resources['last_update'] = datetime.now().timestamp() 
+    
+    def total_resource_value(self) -> float:
+        """Calculate the total value of all resources in credits"""
+        return sum(
+            amount * self.resource_prices.get(resource, 0)
+            for resource, amount in self.resources.items()
+            if resource != 'last_update'  # Skip the timestamp
+        ) 
