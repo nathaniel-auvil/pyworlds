@@ -1,9 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
+import time
 from datetime import datetime, timedelta
 
 from ..models.game_state import GameState
-from .building_info import BuildingInfoPopup
+from .module_info import ModuleInfoPopup
+from .station_view import StationView
 
 class MainWindow:
     def __init__(self):
@@ -25,100 +27,214 @@ class MainWindow:
         self.status_frame = ttk.Frame(self.main_frame)
         self.status_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 5))
         
+        # Credits display
+        self.credits_label = ttk.Label(self.status_frame, text=f"Credits: {self.game_state.credits}")
+        self.credits_label.pack(side=tk.LEFT, padx=5)
+        
         # Game speed indicator
         self.speed_label = ttk.Label(self.status_frame, text="Game Speed: 1.0x")
         self.speed_label.pack(side=tk.RIGHT, padx=5)
 
-        # Resources display
-        self.create_resource_display()
+        # Create notebook for different views
+        self.notebook = ttk.Notebook(self.main_frame)
+        self.notebook.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        # Buildings display
-        self.create_buildings_display()
+        # Mothership view
+        self.mothership_frame = ttk.Frame(self.notebook, padding="5")
+        self.notebook.add(self.mothership_frame, text="Mothership")
+        self.create_mothership_view()
+        
+        # Station view
+        self.station_view = StationView(self.notebook, self.game_state)
+        self.notebook.add(self.station_view, text="Space Station")
 
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        self.main_frame.columnconfigure(1, weight=1)
-        self.main_frame.rowconfigure(2, weight=1)
+        self.main_frame.columnconfigure(0, weight=1)
+        self.main_frame.rowconfigure(1, weight=1)
+
+    def create_mothership_view(self):
+        # Resources display
+        self.create_resource_display()
+        
+        # Ship status
+        self.create_ship_status()
+        
+        # Modules display
+        self.create_modules_display()
 
     def create_resource_display(self):
-        self.resource_frame = ttk.LabelFrame(self.main_frame, text="Resources", padding="5")
-        self.resource_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        self.resource_frame = ttk.LabelFrame(self.mothership_frame, text="Resources", padding="5")
+        self.resource_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
         self.resource_labels = {}
-        for i, resource in enumerate(['metal', 'crystal', 'energy']):
-            ttk.Label(self.resource_frame, text=f"{resource.title()}:").grid(row=0, column=i*4, padx=5)
+        resources = ['metal', 'gas', 'energy', 'refined_metal', 'refined_gas']
+        for i, resource in enumerate(resources):
+            # Resource name
+            ttk.Label(self.resource_frame, text=f"{resource.replace('_', ' ').title()}:").grid(
+                row=i//3, column=(i%3)*2, padx=(10,2), pady=2
+            )
+            
+            # Resource amount
             self.resource_labels[resource] = ttk.Label(self.resource_frame, text="0")
-            self.resource_labels[resource].grid(row=0, column=i*4+1, padx=5)
-            
-            # Add production rate display
-            if resource != 'energy':
-                rate_label = ttk.Label(self.resource_frame, text="(+0/h)")
-                rate_label.grid(row=0, column=i*4+2, padx=5)
-                self.resource_labels[f"{resource}_rate"] = rate_label
-            
-            if resource != 'energy':
-                capacity_label = ttk.Label(self.resource_frame, text=f"/ {self.game_state.storage[resource]}")
-                capacity_label.grid(row=0, column=i*4+3, padx=5)
-                self.resource_labels[f"{resource}_capacity"] = capacity_label
+            self.resource_labels[resource].grid(
+                row=i//3, column=(i%3)*2+1, padx=(2,10), pady=2
+            )
 
-    def create_buildings_display(self):
-        self.buildings_frame = ttk.LabelFrame(self.main_frame, text="Buildings", padding="5")
-        self.buildings_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+    def create_ship_status(self):
+        self.status_frame = ttk.LabelFrame(self.mothership_frame, text="Ship Status", padding="5")
+        self.status_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        
+        # Crew info
+        ttk.Label(self.status_frame, text="Crew:").grid(row=0, column=0, padx=5)
+        self.crew_label = ttk.Label(
+            self.status_frame, 
+            text=f"{self.game_state.mothership.current_crew}/{self.game_state.mothership.max_crew}"
+        )
+        self.crew_label.grid(row=0, column=1, padx=5)
+        
+        # Power info
+        ttk.Label(self.status_frame, text="Power:").grid(row=0, column=2, padx=5)
+        self.power_label = ttk.Label(
+            self.status_frame,
+            text=f"{self.game_state.mothership.power_generation}/{self.game_state.mothership.max_power}"
+        )
+        self.power_label.grid(row=0, column=3, padx=5)
 
-        self.building_info = {}
-        for i, (building_name, building) in enumerate(self.game_state.buildings.items()):
-            frame = ttk.Frame(self.buildings_frame)
+    def create_modules_display(self):
+        self.modules_frame = ttk.LabelFrame(self.mothership_frame, text="Ship Modules", padding="5")
+        self.modules_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+
+        self.module_info = {}
+        for i, (module_id, module) in enumerate(self.game_state.mothership.modules.items()):
+            frame = ttk.Frame(self.modules_frame)
             frame.grid(row=i, column=0, sticky=(tk.W, tk.E), pady=2)
             
-            name = building_name.replace('_', ' ').title()
-            building_label = ttk.Label(frame, text=f"{name}")
-            building_label.grid(row=0, column=0, padx=5)
+            # Module name
+            name = module.name
+            module_label = ttk.Label(frame, text=f"{name}")
+            module_label.grid(row=0, column=0, padx=10)
             
-            # Add info button
+            # Info button
             info_btn = ttk.Button(frame, text="ℹ️", width=3,
-                                command=lambda b=building: self.show_building_info(b))
+                              command=lambda m=module: self.show_module_info(m))
             info_btn.grid(row=0, column=1, padx=2)
             
-            level_label = ttk.Label(frame, text=f"Level: {building.level}")
+            # Level
+            level_label = ttk.Label(frame, text=f"Level: {module.level}")
             level_label.grid(row=0, column=2, padx=5)
             
-            # Production/Storage info
-            if building.base_production is not None:
-                prod_label = ttk.Label(frame, text=f"Production: {int(building.calculate_production())}/h")
-                prod_label.grid(row=0, column=3, padx=5)
-            elif building_name == 'storage_facility':
-                prod_label = ttk.Label(frame, text=f"Capacity: {building.calculate_capacity()}")
-                prod_label.grid(row=0, column=3, padx=5)
-            else:
-                prod_label = None
+            # Status (active/inactive)
+            status_var = tk.BooleanVar(value=module.is_active)
+            status_check = ttk.Checkbutton(
+                frame, text="Active", variable=status_var,
+                command=lambda m=module, v=status_var: self.toggle_module(m, v)
+            )
+            status_check.grid(row=0, column=3, padx=5)
             
-            cost_text = f"Cost: {building.calculate_cost()['metal']}M, {building.calculate_cost()['crystal']}C"
-            cost_label = ttk.Label(frame, text=cost_text)
-            cost_label.grid(row=0, column=4, padx=5)
+            # Power usage
+            power_label = ttk.Label(frame, text=f"Power: {int(module.power_usage())}")
+            power_label.grid(row=0, column=4, padx=5)
             
-            # Progress bar for building
-            progress_var = tk.DoubleVar(value=0)
-            progress_bar = ttk.Progressbar(frame, length=100, mode='determinate', variable=progress_var)
-            progress_bar.grid(row=0, column=5, padx=5)
+            # Crew requirement
+            crew_label = ttk.Label(frame, text=f"Crew: {module.crew_required()}")
+            crew_label.grid(row=0, column=5, padx=5)
             
-            # Time remaining label
-            time_label = ttk.Label(frame, text="")
-            time_label.grid(row=0, column=6, padx=5)
+            # Production/Collection rate if applicable
+            rate_label = None
+            if hasattr(module, 'collection_rate'):
+                rate = module.collection_rate()
+                rate_label = ttk.Label(frame, text=f"Rate: {int(rate)}/h")
+                rate_label.grid(row=0, column=6, padx=5)
+            elif hasattr(module, 'production_rate'):
+                rate = module.production_rate()
+                rate_label = ttk.Label(frame, text=f"Rate: {int(rate)}/h")
+                rate_label.grid(row=0, column=6, padx=5)
             
-            upgrade_btn = ttk.Button(frame, text="Upgrade", 
-                                   command=lambda b=building_name: self.upgrade_building(b))
+            # Upgrade button
+            upgrade_btn = ttk.Button(frame, text="Upgrade",
+                                   command=lambda m=module_id: self.upgrade_module(m))
             upgrade_btn.grid(row=0, column=7, padx=5)
             
-            self.building_info[building_name] = {
+            self.module_info[module_id] = {
                 'level_label': level_label,
-                'production_label': prod_label,
-                'cost_label': cost_label,
-                'upgrade_button': upgrade_btn,
-                'progress_var': progress_var,
-                'progress_bar': progress_bar,
-                'time_label': time_label
+                'power_label': power_label,
+                'crew_label': crew_label,
+                'rate_label': rate_label,
+                'status_check': status_check,
+                'upgrade_button': upgrade_btn
             }
+
+    def toggle_module(self, module, status_var):
+        """Toggle module active status"""
+        if status_var.get():  # Trying to activate
+            if module.can_activate(self.game_state.mothership):
+                module.is_active = True
+            else:
+                status_var.set(False)  # Revert checkbox
+                # Show error message
+                tk.messagebox.showerror(
+                    "Cannot Activate",
+                    "Insufficient power or crew to activate this module!"
+                )
+        else:  # Deactivating
+            module.is_active = False
+        
+        self.update_status_displays()
+
+    def upgrade_module(self, module_id):
+        """Upgrade a module"""
+        # To be implemented
+        pass
+
+    def show_module_info(self, module):
+        """Show detailed module information"""
+        ModuleInfoPopup(self.root, module)
+
+    def update_displays(self):
+        """Update all displays"""
+        # Update resources
+        for resource, label in self.resource_labels.items():
+            label.config(text=f"{int(self.game_state.mothership.resources[resource])}")
+        
+        # Update credits
+        self.credits_label.config(text=f"Credits: {self.game_state.credits}")
+        
+        self.update_status_displays()
+        
+        # Schedule next update
+        self.root.after(1000, self.update_displays)
+
+    def update_status_displays(self):
+        """Update ship status displays"""
+        ship = self.game_state.mothership
+        
+        # Update crew display
+        self.crew_label.config(
+            text=f"{ship.current_crew}/{ship.max_crew} "
+                f"(Available: {ship.available_crew})"
+        )
+        
+        # Update power display
+        self.power_label.config(
+            text=f"{ship.power_generation}/{ship.max_power} "
+                f"(Available: {int(ship.available_power)})"
+        )
+        
+        # Update module displays
+        for module_id, module in ship.modules.items():
+            info = self.module_info[module_id]
+            info['power_label'].config(text=f"Power: {int(module.power_usage())}")
+            info['crew_label'].config(text=f"Crew: {module.crew_required()}")
+            
+            if info['rate_label']:
+                if hasattr(module, 'collection_rate'):
+                    rate = module.collection_rate()
+                    info['rate_label'].config(text=f"Rate: {int(rate)}/h")
+                elif hasattr(module, 'production_rate'):
+                    rate = module.production_rate()
+                    info['rate_label'].config(text=f"Rate: {int(rate)}/h")
 
     def create_menu_bar(self):
         menubar = tk.Menu(self.root)
@@ -145,140 +261,7 @@ class MainWindow:
     def set_game_speed(self, speed):
         self.game_state.game_speed = speed
         self.speed_label.config(text=f"Game Speed: {speed}x")
-        self.update_production_displays()
-    
-    def update_production_displays(self):
-        for resource in ['metal', 'crystal']:
-            mine = f"{resource}_mine"
-            building = self.game_state.buildings[mine]
-            production = building.calculate_production() * self.game_state.game_speed
-            self.resource_labels[f"{resource}_rate"].config(text=f"(+{int(production)}/h)")
-            
-            if building.base_production is not None:
-                self.building_info[mine]['production_label'].config(
-                    text=f"Production: {int(production)}/h"
-                )
-        
-        # Update solar plant display
-        solar_plant = self.game_state.buildings['solar_plant']
-        solar_production = solar_plant.calculate_production() * self.game_state.game_speed
-        self.building_info['solar_plant']['production_label'].config(
-            text=f"Production: {int(solar_production)}/h"
-        )
-
-    def update_resources(self):
-        current_time = datetime.now().timestamp()
-        elapsed_time = (current_time - self.game_state.resources['last_update']) / 3600  # Convert to hours
-        
-        self.game_state.update_resources(elapsed_time)
-        
-        # Update display
-        for resource in ['metal', 'crystal', 'energy']:
-            self.resource_labels[resource].config(text=f"{int(self.game_state.resources[resource])}")
-        
-        # Update building progress
-        self.update_building_progress()
-        
-        # Schedule next update
-        self.root.after(1000, self.update_resources)  # Update every second
-
-    def update_building_progress(self):
-        current_time = datetime.now()
-        
-        for building_name, building in self.game_state.buildings.items():
-            if building.current_build:
-                start_time = building.current_build['start_time']
-                end_time = building.current_build['end_time']
-                total_seconds = (end_time - start_time).total_seconds()
-                elapsed_seconds = (current_time - start_time).total_seconds()
-                
-                if current_time >= end_time:
-                    # Complete the upgrade
-                    self.complete_upgrade(building_name)
-                else:
-                    # Update progress bar and time remaining
-                    progress = (elapsed_seconds / total_seconds) * 100
-                    self.building_info[building_name]['progress_var'].set(progress)
-                    
-                    remaining = end_time - current_time
-                    remaining_str = str(timedelta(seconds=int(remaining.total_seconds())))
-                    self.building_info[building_name]['time_label'].config(text=f"Time: {remaining_str}")
-
-    def complete_upgrade(self, building_name):
-        building = self.game_state.buildings[building_name]
-        building.level += 1
-        building.current_build = None
-        
-        # Update production rates and storage capacity
-        if building.base_production is not None:
-            building.production = building.calculate_production()
-            self.building_info[building_name]['production_label'].config(
-                text=f"Production: {int(building.production)}/h"
-            )
-        elif building_name == 'storage_facility':
-            self.game_state.update_storage_capacity()
-            for resource in ['metal', 'crystal']:
-                self.resource_labels[f"{resource}_capacity"].config(
-                    text=f"/ {self.game_state.storage[resource]}"
-                )
-            self.building_info[building_name]['production_label'].config(
-                text=f"Capacity: {building.calculate_capacity()}"
-            )
-        
-        # Update level display
-        self.building_info[building_name]['level_label'].config(text=f"Level: {building.level}")
-        
-        # Reset progress bar and time label
-        self.building_info[building_name]['progress_var'].set(0)
-        self.building_info[building_name]['time_label'].config(text="")
-        
-        # Update costs display
-        cost_text = f"Cost: {building.calculate_cost()['metal']}M, {building.calculate_cost()['crystal']}C"
-        self.building_info[building_name]['cost_label'].config(text=cost_text)
-        
-        # Re-enable upgrade button
-        self.building_info[building_name]['upgrade_button'].config(state='normal')
-        
-        # Update production displays to reflect new rates
-        self.update_production_displays()
-
-    def upgrade_building(self, building_name):
-        building = self.game_state.buildings[building_name]
-        costs = building.calculate_cost()
-        
-        # Check level cap
-        max_level = 15 if 'mine' in building_name else 50
-        if building.level >= max_level:
-            return
-        
-        # Check if we can afford it
-        if self.game_state.can_afford(costs):
-            # Check if any building is currently under construction
-            for b in self.game_state.buildings.values():
-                if b.current_build is not None:
-                    return  # Can't build if something is already under construction
-            
-            # Deduct resources
-            self.game_state.deduct_resources(costs)
-            
-            # Calculate build time (increases with level)
-            build_time = building.calculate_build_time() / self.game_state.game_speed
-            
-            # Set up the build
-            start_time = datetime.now()
-            end_time = start_time + timedelta(seconds=build_time)
-            
-            building.current_build = {
-                'start_time': start_time,
-                'end_time': end_time
-            }
-            
-            # Disable upgrade button during construction
-            self.building_info[building_name]['upgrade_button'].config(state='disabled')
-
-    def show_building_info(self, building):
-        BuildingInfoPopup(self.root, building)
 
     def run(self):
-        self.update_resources()
+        self.update_displays()
         self.root.mainloop() 

@@ -1,9 +1,42 @@
 from datetime import datetime
-from .buildings import BuildingFactory
+from .ship import Mothership
+from .station import SpaceStation
+
+class Building:
+    def __init__(self, level, base_production=None, base_capacity=None, cost=None, build_time=60):
+        self.level = level
+        self.base_production = base_production
+        self.base_capacity = base_capacity
+        self.base_cost = cost or {'metal': 100, 'crystal': 50}
+        self.base_build_time = build_time
+        self.current_build = None
+        
+    def calculate_production(self):
+        if self.base_production is None:
+            return 0
+        return self.base_production * (1.25 ** (self.level - 1))
+    
+    def calculate_capacity(self):
+        if self.base_capacity is None:
+            return 0
+        return self.base_capacity * self.level
+    
+    def calculate_cost(self):
+        return {
+            resource: int(amount * (1.5 ** self.level))
+            for resource, amount in self.base_cost.items()
+        }
+    
+    def calculate_build_time(self):
+        return self.base_build_time * (1.2 ** self.level)
 
 class GameState:
     def __init__(self):
         self.game_speed = 1.0
+        self.mothership = Mothership()
+        self.station = SpaceStation()
+        self.credits = 1000
+        self.last_update = datetime.now().timestamp()
         
         # Initialize resources
         self.resources = {
@@ -21,53 +54,75 @@ class GameState:
         
         # Initialize buildings
         self.buildings = {
-            'metal_mine': BuildingFactory.create_metal_mine(),
-            'crystal_mine': BuildingFactory.create_crystal_mine(),
-            'solar_plant': BuildingFactory.create_solar_plant(),
-            'storage_facility': BuildingFactory.create_storage_facility(),
-            'shipyard': BuildingFactory.create_shipyard(),
-            'research_lab': BuildingFactory.create_research_lab()
+            'metal_mine': Building(
+                level=1,
+                base_production=10,
+                cost={'metal': 60, 'crystal': 15},
+                build_time=60
+            ),
+            'crystal_mine': Building(
+                level=1,
+                base_production=8,
+                cost={'metal': 48, 'crystal': 24},
+                build_time=80
+            ),
+            'solar_plant': Building(
+                level=1,
+                base_production=20,
+                cost={'metal': 75, 'crystal': 30},
+                build_time=100
+            ),
+            'storage_facility': Building(
+                level=1,
+                base_capacity=1000,
+                cost={'metal': 100, 'crystal': 50},
+                build_time=120
+            ),
+            'shipyard': Building(
+                level=0,
+                cost={'metal': 400, 'crystal': 200},
+                build_time=300
+            ),
+            'research_lab': Building(
+                level=0,
+                cost={'metal': 200, 'crystal': 400},
+                build_time=240
+            )
         }
     
-    def update_resources(self, elapsed_hours):
-        """Update resources based on production rates and elapsed time"""
-        for resource in ['metal', 'crystal']:
-            mine = f"{resource}_mine"
-            production = (
-                self.buildings[mine].calculate_production() * 
-                elapsed_hours * 
-                self.game_speed
-            )
-            
-            # Check storage capacity
-            available_storage = self.storage[resource] - self.resources[resource]
-            production = min(production, available_storage)
-            
-            self.resources[resource] += production
+    def update(self, current_time: float):
+        """Update game state"""
+        elapsed_time = current_time - self.last_update
         
-        # Update energy
-        self.resources['energy'] = (
-            self.buildings['solar_plant'].calculate_production() * 
-            self.game_speed
-        )
+        # Update mothership resources
+        self.mothership.update_resources(elapsed_time, self.game_speed)
         
-        self.resources['last_update'] = datetime.now().timestamp()
+        # Update station
+        self.station.update_trades()
+        self.station.restock()
+        
+        self.last_update = current_time
     
-    def can_afford(self, costs):
+    def can_afford(self, costs: dict) -> bool:
         """Check if we can afford the given costs"""
-        return all(
-            self.resources[resource] >= amount 
-            for resource, amount in costs.items()
-        )
+        for resource, amount in costs.items():
+            if resource == 'credits':
+                if self.credits < amount:
+                    return False
+            elif self.mothership.resources.get(resource, 0) < amount:
+                return False
+        return True
     
-    def deduct_resources(self, costs):
+    def deduct_resources(self, costs: dict):
         """Deduct resources based on costs"""
         for resource, amount in costs.items():
-            self.resources[resource] -= amount
+            if resource == 'credits':
+                self.credits -= amount
+            else:
+                self.mothership.resources[resource] -= amount
     
     def update_storage_capacity(self):
         """Update storage capacity based on storage facility level"""
-        storage_building = self.buildings['storage_facility']
-        capacity = storage_building.calculate_capacity()
+        storage = self.buildings['storage_facility']
         for resource in ['metal', 'crystal']:
-            self.storage[resource] = capacity 
+            self.storage[resource] = storage.calculate_capacity() 

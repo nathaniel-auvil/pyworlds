@@ -2,9 +2,9 @@ import tkinter as tk
 from tkinter import ttk
 
 class BuildingInfoPopup(tk.Toplevel):
-    def __init__(self, parent, building):
+    def __init__(self, parent, building_name, building):
         super().__init__(parent)
-        self.title(f"{building.name.replace('_', ' ').title()} Information")
+        self.title(f"{building_name.replace('_', ' ').title()} Information")
         self.geometry("400x500")
         
         # Make the popup modal
@@ -34,7 +34,7 @@ class BuildingInfoPopup(tk.Toplevel):
         ttk.Separator(self.scrollable_frame, orient='horizontal').grid(row=1, column=0, columnspan=3, sticky='ew', pady=5)
         
         # Calculate and display info for each level
-        max_level = 15 if 'mine' in building.name else 50
+        max_level = 15 if 'mine' in building_name else 50
         current_level = building.level
         
         for level in range(1, max_level + 1):
@@ -48,17 +48,36 @@ class BuildingInfoPopup(tk.Toplevel):
             
             # Production/Capacity
             if building.base_production is not None:
-                prod = building.calculate_production(level)
+                # Store current level
+                current = building.level
+                # Temporarily set level to calculate production
+                building.level = level
+                prod = building.calculate_production()
+                # Restore original level
+                building.level = current
                 ttk.Label(self.scrollable_frame, text=f"{int(prod)}/hour").grid(row=row, column=1, padx=5, pady=2)
             elif building.base_capacity is not None:
-                capacity = building.calculate_capacity(level)
+                # Store current level
+                current = building.level
+                # Temporarily set level to calculate capacity
+                building.level = level
+                capacity = building.calculate_capacity()
+                # Restore original level
+                building.level = current
                 ttk.Label(self.scrollable_frame, text=f"{capacity}").grid(row=row, column=1, padx=5, pady=2)
             else:
                 ttk.Label(self.scrollable_frame, text="-").grid(row=row, column=1, padx=5, pady=2)
             
             # Upgrade cost
-            level_cost = building.calculate_cost(level)
-            cost_text = f"M: {level_cost['metal']}, C: {level_cost['crystal']}"
+            # Store current level
+            current = building.level
+            # Temporarily set level to calculate cost
+            building.level = level - 1  # -1 because costs are for next level
+            costs = building.calculate_cost()
+            # Restore original level
+            building.level = current
+            
+            cost_text = f"M: {costs['metal']}, C: {costs['crystal']}"
             ttk.Label(self.scrollable_frame, text=cost_text).grid(row=row, column=2, padx=5, pady=2)
         
         canvas.pack(side="left", fill="both", expand=True)
