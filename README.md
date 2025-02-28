@@ -7,13 +7,15 @@ A Python-based space strategy game inspired by classic space strategy games. Com
 ### Core Systems
 - Mothership Management
   - Module System (Collectors, Storage, Production)
-  - Power Management
-  - Crew Assignment
-  - Resource Storage
+  - Power Management and Usage Tracking
+  - Crew Assignment and Management
+  - Resource Storage and Valuation
+  - Module Upgrades with Time-based Progress
 - Resource Collection
-  - Metal and Gas Collection
-  - Energy Generation
+  - Metal and Gas Collection with Quality Modifiers
+  - Energy Generation and Power Distribution
   - Resource Refinement
+  - Automatic Storage Management
 - Space Station Interaction
   - Trading System
   - Mission System
@@ -54,6 +56,27 @@ python main.py
 python -m src.pyworld
 ```
 
+## Testing
+
+The project includes a comprehensive test suite. To run the tests:
+
+```bash
+# Run all tests
+python -m unittest discover src/pyworld/tests
+
+# Run specific test file
+python src/pyworld/tests/test_ship.py
+
+# Run with verbose output
+python src/pyworld/tests/test_ship.py -v
+```
+
+Key test areas include:
+- Module system (power, crew, upgrades)
+- Resource collection and storage
+- Ship management and resource updates
+- Resource value calculations
+
 ## Game Configuration
 
 The game settings can be configured in `src/pyworld/config.yaml`. This includes:
@@ -78,9 +101,12 @@ pyworlds/
 │       ├── assets/        # Game assets (icons, etc.)
 │       ├── models/        # Game logic and data structures
 │       │   ├── __init__.py
-│       │   ├── ship.py
-│       │   ├── station.py
+│       │   ├── ship.py    # Ship and module classes
+│       │   ├── station.py # Space station functionality
 │       │   └── game_state.py
+│       ├── tests/         # Test suite
+│       │   ├── __init__.py
+│       │   └── test_ship.py
 │       └── ui/            # User interface components
 │           ├── __init__.py
 │           ├── main_window.py
@@ -90,14 +116,22 @@ pyworlds/
 
 ## Development Status
 
-The game is currently transitioning from a planetary-based economy to a fleet-based system centered around a mothership. Core systems for ship management, resource collection, and space station interaction are being implemented. Check our [ROADMAP.md](ROADMAP.md) for detailed development status and upcoming features.
+The game is currently transitioning from a planetary-based economy to a fleet-based system centered around a mothership. Core systems for ship management, resource collection, and space station interaction are being implemented. Recent updates include:
+- Enhanced module system with upgrade tracking
+- Improved resource collection with storage limits
+- Power usage monitoring and management
+- Resource value calculations
+- Comprehensive test coverage
+
+Check our [ROADMAP.md](ROADMAP.md) for detailed development status and upcoming features.
 
 ## Contributing
 
 Contributions are welcome! Please feel free to:
 1. Check the [ROADMAP.md](ROADMAP.md) for planned features
 2. Create a new branch for your feature
-3. Submit a Pull Request
+3. Add tests for new functionality
+4. Submit a Pull Request
 
 ## License
 
