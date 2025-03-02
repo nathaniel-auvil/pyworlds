@@ -1,137 +1,94 @@
-# PyWorlds - Space Fleet Strategy Game
+# PyWorlds
 
-A Python-based space strategy game inspired by classic space strategy games. Command your mothership, manage your fleet, and build a thriving space empire through resource collection, trading, and exploration.
+A space-based resource management and trading game built with Python and Tkinter.
 
 ## Features
 
-### Core Systems
-- Mothership Management
-  - Module System (Collectors, Storage, Production)
-  - Power Management and Usage Tracking
-  - Crew Assignment and Management
-  - Resource Storage and Valuation
-  - Module Upgrades with Time-based Progress
-- Resource Collection
-  - Metal and Gas Collection with Quality Modifiers
-  - Energy Generation and Power Distribution
-  - Resource Refinement
-  - Automatic Storage Management
-- Space Station Interaction
-  - Trading System
-  - Mission System
-  - Blueprint Research
+- **Fleet Management**: Start with a freighter and expand your fleet
+  - Mining drones for resource collection
+  - Gas collectors for gas harvesting
+  - Upgradeable ships with increased capacity and capabilities
 
-### Planned Features
-See our [ROADMAP.md](ROADMAP.md) for detailed development plans including:
-- Fleet Management
-- Advanced Trading
-- Space Exploration
-- Random Events
-- And more!
+- **Resource System**:
+  - Metal mining with drones
+  - Gas collection with specialized collectors
+  - Energy management for powering equipment
+  - Resource storage management
+  - Resource trading and refinement
+
+- **Universe Exploration**:
+  - Travel between different star systems
+  - Discover new resource deposits
+  - Establish trade routes
 
 ## Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/nathaniel-auvil/pyworlds.git
+git clone https://github.com/yourusername/pyworlds.git
 cd pyworlds
 ```
 
-2. Install the package:
+2. Create a virtual environment (optional but recommended):
 ```bash
-pip install -e .
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
 ## Running the Game
 
-You can run the game in two ways:
+From the project root directory:
 
-1. Using the main script:
 ```bash
-python main.py
+python -m src.pyworld.main
 ```
 
-2. Using the Python module:
-```bash
-python -m src.pyworld
-```
+## Development
 
-## Testing
+### Running Tests
 
-The project includes a comprehensive test suite. To run the tests:
+To run the test suite:
 
 ```bash
-# Run all tests
 python -m unittest discover src/pyworld/tests
-
-# Run specific test file
-python src/pyworld/tests/test_ship.py
-
-# Run with verbose output
-python src/pyworld/tests/test_ship.py -v
 ```
 
-Key test areas include:
-- Module system (power, crew, upgrades)
-- Resource collection and storage
-- Ship management and resource updates
-- Resource value calculations
+### Project Structure
 
-## Game Configuration
+- `src/pyworld/`
+  - `models/`: Game logic and data structures
+  - `ui/`: User interface components
+  - `tests/`: Unit tests
+  - `main.py`: Game entry point
 
-The game settings can be configured in `src/pyworld/config.yaml`. This includes:
-- Initial resources and storage capacity
-- Module properties (collection rates, power usage, crew requirements)
-- Game speed options
-- UI settings
+### Current Features
 
-## Project Structure
+- Overview tab with fleet management
+- Universe map for navigation
+- Space station interface for trading
+- Resource collection and management
+- Ship upgrades and equipment management
 
-```
-pyworlds/
-├── main.py                 # Main entry point
-├── setup.py               # Package installation configuration
-├── README.md              # Project documentation
-├── ROADMAP.md            # Development roadmap
-├── src/
-│   └── pyworld/
-│       ├── __init__.py
-│       ├── __main__.py
-│       ├── config.yaml    # Game configuration
-│       ├── assets/        # Game assets (icons, etc.)
-│       ├── models/        # Game logic and data structures
-│       │   ├── __init__.py
-│       │   ├── ship.py    # Ship and module classes
-│       │   ├── station.py # Space station functionality
-│       │   └── game_state.py
-│       ├── tests/         # Test suite
-│       │   ├── __init__.py
-│       │   └── test_ship.py
-│       └── ui/            # User interface components
-│           ├── __init__.py
-│           ├── main_window.py
-│           ├── module_info.py
-│           └── station_view.py
-```
+### Planned Features
 
-## Development Status
-
-The game is currently transitioning from a planetary-based economy to a fleet-based system centered around a mothership. Core systems for ship management, resource collection, and space station interaction are being implemented. Recent updates include:
-- Enhanced module system with upgrade tracking
-- Improved resource collection with storage limits
-- Power usage monitoring and management
-- Resource value calculations
-- Comprehensive test coverage
-
-Check our [ROADMAP.md](ROADMAP.md) for detailed development status and upcoming features.
+- Multiple ship types
+- Advanced trading system
+- Research and development
+- Missions and quests
+- Multiplayer support
 
 ## Contributing
 
-Contributions are welcome! Please feel free to:
-1. Check the [ROADMAP.md](ROADMAP.md) for planned features
-2. Create a new branch for your feature
-3. Add tests for new functionality
-4. Submit a Pull Request
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run the tests
+5. Submit a pull request
 
 ## License
 

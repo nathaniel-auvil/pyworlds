@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
+from typing import List, Optional
 from .ship import Mothership
 from .station import SpaceStation
 from .universe import Universe
+from .fleet import Fleet
 
 class Building:
     def __init__(self, level, base_production=None, base_capacity=None, cost=None, build_time=60):
@@ -33,19 +35,27 @@ class Building:
 
 class GameState:
     def __init__(self):
-        self.game_speed = 1.0
-        self.mothership = Mothership()
-        self.station = SpaceStation()
-        self.universe = Universe()
+        self.corporation_name = "New Corporation"
         self.credits = 1000
-        self.last_update = datetime.now().timestamp()
+        self.total_assets = self.credits
         
-        # Travel state
+        # Initialize universe
+        self.universe = Universe()
+        self.current_region = self.universe.home_region
+        
+        # Initialize station
+        self.station = SpaceStation()
+        
+        # Initialize fleets with a starting freighter
+        self.fleets: List[Fleet] = []
+        self.current_fleet_id: Optional[int] = None
+        self.add_starting_fleet()
+        
+        # Game state
         self.is_traveling = False
-        self.travel_start = None
+        self.travel_progress = 0.0
         self.travel_destination = None
-        self.travel_duration = None
-        self.current_region = next(iter(self.universe.regions.values()))  # Start in first region
+        self.travel_eta = None
         
         # Initialize resources
         self.resources = {
@@ -98,101 +108,132 @@ class GameState:
                 build_time=240
             )
         }
+        
+        self.game_speed = 1.0  # Default game speed
+    
+    def add_starting_fleet(self):
+        """Add the starting freighter fleet"""
+        fleet = Fleet("Fleet Alpha")
+        self.fleets.append(fleet)
+        self.current_fleet_id = fleet.id
+    
+    def get_current_fleet(self) -> Optional[Fleet]:
+        """Get the currently selected fleet"""
+        if self.current_fleet_id is None:
+            return None
+        return next(
+            (f for f in self.fleets if f.id == self.current_fleet_id),
+            None
+        )
+    
+    def set_current_fleet(self, fleet_id: int) -> bool:
+        """Set the current fleet by ID"""
+        if any(f.id == fleet_id for f in self.fleets):
+            self.current_fleet_id = fleet_id
+            return True
+        return False
+    
+    def add_fleet(self, name: str, ship_type: str = "Freighter") -> Fleet:
+        """Add a new fleet"""
+        fleet = Fleet(name, ship_type)
+        self.fleets.append(fleet)
+        return fleet
+    
+    def remove_fleet(self, fleet_id: int) -> bool:
+        """Remove a fleet by ID"""
+        fleet = next((f for f in self.fleets if f.id == fleet_id), None)
+        if fleet:
+            self.fleets.remove(fleet)
+            if self.current_fleet_id == fleet_id:
+                self.current_fleet_id = self.fleets[0].id if self.fleets else None
+            return True
+        return False
+    
+    def update(self, dt: float):
+        """Update game state"""
+        # Update all fleets
+        for fleet in self.fleets:
+            fleet.update(dt)
+        
+        # Update total assets
+        self.update_total_assets()
+    
+    def update_total_assets(self):
+        """Calculate total assets including fleet values and resources"""
+        total = self.credits
+        
+        # Add value of each fleet
+        for fleet in self.fleets:
+            # Base ship value
+            ship_value = 1000 * (1.5 ** (fleet.level - 1))
+            
+            # Add value of drones and collectors
+            drone_value = 500 * fleet.mining_drones
+            collector_value = 750 * fleet.gas_collectors
+            
+            # Add value of resources
+            resource_values = {
+                'metal': 10,
+                'gas': 15,
+                'refined_metal': 25,
+                'refined_gas': 35
+            }
+            resource_value = sum(
+                amount * resource_values.get(resource, 0)
+                for resource, amount in fleet.resources.items()
+                if resource != 'energy'
+            )
+            
+            total += ship_value + drone_value + collector_value + resource_value
+        
+        self.total_assets = total
+    
+    def can_afford(self, costs: dict) -> bool:
+        """Check if we can afford the specified costs"""
+        if 'credits' in costs and costs['credits'] > self.credits:
+            return False
+        
+        current_fleet = self.get_current_fleet()
+        if not current_fleet:
+            return False
+        
+        for resource, amount in costs.items():
+            if resource != 'credits':
+                if current_fleet.resources.get(resource, 0) < amount:
+                    return False
+        return True
+    
+    def deduct_resources(self, costs: dict) -> bool:
+        """Deduct resources if we can afford them"""
+        if not self.can_afford(costs):
+            return False
+        
+        if 'credits' in costs:
+            self.credits -= costs['credits']
+        
+        current_fleet = self.get_current_fleet()
+        for resource, amount in costs.items():
+            if resource != 'credits':
+                current_fleet.remove_resource(resource, amount)
+        
+        return True
     
     @property
     def crew(self) -> int:
         """Get the current crew count"""
-        return self.mothership.current_crew
+        current_fleet = self.get_current_fleet()
+        if current_fleet:
+            return current_fleet.mining_drones + current_fleet.gas_collectors
+        return 0
         
     @property
     def power_usage(self) -> float:
         """Get the current power usage"""
-        return self.mothership.power_generation - self.mothership.available_power
+        current_fleet = self.get_current_fleet()
+        if current_fleet:
+            return current_fleet.power_usage
+        return 0
         
-    def update(self, current_time: float):
-        """Update game state"""
-        elapsed_time = current_time - self.last_update
-        
-        # Update mothership resources
-        self.mothership.update_resources(elapsed_time, self.game_speed)
-        
-        # Update station
-        self.station.update_trades()
-        self.station.restock()
-        
-        # Update universe
-        self.universe.update()
-        
-        # Update travel progress
-        if self.is_traveling and self.travel_start:
-            elapsed = datetime.now() - self.travel_start
-            if elapsed >= self.travel_duration:
-                self.complete_travel()
-        
-        self.last_update = current_time
-    
-    def start_travel(self, destination):
-        """Start traveling to a new region"""
-        if self.is_traveling:
-            return False
-            
-        self.is_traveling = True
-        self.travel_start = datetime.now()
-        self.travel_destination = destination
-        self.travel_duration = timedelta(hours=1)  # For now, all travel takes 1 hour
-        
-        # Deduct fuel cost
-        fuel_cost = 10  # For now, fixed fuel cost
-        self.mothership.resources['fuel'] = self.mothership.resources.get('fuel', 0) - fuel_cost
-        
-        return True
-    
-    def complete_travel(self):
-        """Complete the current travel"""
-        if not self.is_traveling:
-            return
-            
-        self.current_region = self.travel_destination
-        self.is_traveling = False
-        self.travel_start = None
-        self.travel_destination = None
-        self.travel_duration = None
-    
-    @property
-    def travel_progress(self) -> float:
-        """Calculate travel progress as a value between 0 and 1"""
-        if not self.is_traveling or not self.travel_start or not self.travel_duration:
-            return 0.0
-            
-        elapsed = datetime.now() - self.travel_start
-        return min(1.0, elapsed.total_seconds() / self.travel_duration.total_seconds())
-    
-    @property
-    def travel_eta(self) -> datetime:
-        """Calculate estimated time of arrival"""
-        if not self.is_traveling or not self.travel_start or not self.travel_duration:
-            return datetime.now()
-            
-        return self.travel_start + self.travel_duration
-    
-    def can_afford(self, costs: dict) -> bool:
-        """Check if we can afford the given costs"""
-        for resource, amount in costs.items():
-            if resource == 'credits':
-                if self.credits < amount:
-                    return False
-            elif self.mothership.resources.get(resource, 0) < amount:
-                return False
-        return True
-    
-    def deduct_resources(self, costs: dict):
-        """Deduct resources based on costs"""
-        for resource, amount in costs.items():
-            if resource == 'credits':
-                self.credits -= amount
-            else:
-                self.mothership.resources[resource] -= amount
-    
     def update_storage_capacity(self):
         """Update storage capacity based on storage facility level"""
         storage = self.buildings['storage_facility']

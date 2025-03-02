@@ -59,6 +59,9 @@ class SpaceStation:
         
         self.last_restock = datetime.now()
         self.restock_interval = timedelta(hours=1)
+        self.level = 1
+        self.modules = []
+        self.max_modules = 3
     
     def update_trades(self):
         """Update trade prices and quantities"""
@@ -150,4 +153,51 @@ class SpaceStation:
             ship.resources[resource] = ship.resources.get(resource, 0) + amount
             
         mission.completed = True
-        return True 
+        return True
+
+    def add_module(self, module_type):
+        if len(self.modules) < self.max_modules:
+            module = Module(module_type)
+            self.modules.append(module)
+            return True
+        return False
+
+    def get_module_by_type(self, module_type):
+        for module in self.modules:
+            if module.type == module_type:
+                return module
+        return None
+
+    def remove_module(self, module_type):
+        module = self.get_module_by_type(module_type)
+        if module:
+            self.modules.remove(module)
+            return True
+        return False
+
+    def upgrade(self):
+        self.level += 1
+        self.max_modules += 1
+
+    def process_resources(self, resources):
+        output = {}
+        for module in self.modules:
+            if module.type == "refinery":
+                output['refined_metal'] = resources.get('metal', 0) * 0.1
+                output['refined_gas'] = resources.get('gas', 0) * 0.1
+        return output
+
+    def upgrade_module(self, module_type):
+        module = self.get_module_by_type(module_type)
+        if module:
+            module.upgrade()
+
+class Module:
+    def __init__(self, module_type):
+        self.type = module_type
+        self.level = 1
+        self.efficiency = 1.0
+
+    def upgrade(self):
+        self.level += 1
+        self.efficiency *= 1.1 
