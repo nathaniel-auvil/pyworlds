@@ -1,6 +1,6 @@
 # PyWorlds
 
-A space-based resource management and trading game built with Python and Tkinter.
+A space-based resource management and trading game built using only Prompt engineering.
 
 ## Features
 
