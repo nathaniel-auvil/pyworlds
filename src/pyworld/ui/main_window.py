@@ -89,14 +89,14 @@ class MainWindow(tk.Tk):
         self.game_state.update(dt)
         
         # Update resource displays
-        self.credits_label.config(text=f"{self.game_state.credits:,.0f}")
+        self.credits_label.config(text=f"{int(self.game_state.credits):,}")
         
         current_fleet = self.game_state.get_current_fleet()
         if current_fleet:
             for resource, label in self.resource_labels.items():
                 amount = current_fleet.resources.get(resource, 0)
                 capacity = current_fleet.get_resource_capacity(resource)
-                label.config(text=f"{amount:,.0f}/{capacity:,.0f}")
+                label.config(text=f"{int(amount):,}/{int(capacity):,}")
         else:
             for label in self.resource_labels.values():
                 label.config(text="0/0")
@@ -119,7 +119,7 @@ class MainWindow(tk.Tk):
         else:
             self.status_bar.config(text="No fleet selected")
         
-        # Schedule next update
+        # Schedule next update (10 times per second instead of every 100ms)
         self.after(100, self.update_displays)
     
     def run(self):

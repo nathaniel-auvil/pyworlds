@@ -57,20 +57,6 @@ class GameState:
         self.travel_destination = None
         self.travel_eta = None
         
-        # Initialize resources
-        self.resources = {
-            'metal': 500,
-            'crystal': 300,
-            'energy': 100,
-            'last_update': datetime.now().timestamp()
-        }
-        
-        # Initialize storage
-        self.storage = {
-            'metal': 1000,
-            'crystal': 1000
-        }
-        
         # Initialize buildings
         self.buildings = {
             'metal_mine': Building(
@@ -110,6 +96,7 @@ class GameState:
         }
         
         self.game_speed = 1.0  # Default game speed
+        self._last_asset_update = datetime.now()
     
     def add_starting_fleet(self):
         """Add the starting freighter fleet"""
@@ -155,8 +142,11 @@ class GameState:
         for fleet in self.fleets:
             fleet.update(dt)
         
-        # Update total assets
-        self.update_total_assets()
+        # Only update total assets every second
+        now = datetime.now()
+        if (now - self._last_asset_update).total_seconds() >= 1.0:
+            self.update_total_assets()
+            self._last_asset_update = now
     
     def update_total_assets(self):
         """Calculate total assets including fleet values and resources"""
@@ -186,7 +176,9 @@ class GameState:
             
             total += ship_value + drone_value + collector_value + resource_value
         
-        self.total_assets = total
+        # Only update if value has changed significantly (more than 0.1%)
+        if abs(self.total_assets - total) / (self.total_assets + 1) > 0.001:
+            self.total_assets = total
     
     def can_afford(self, costs: dict) -> bool:
         """Check if we can afford the specified costs"""

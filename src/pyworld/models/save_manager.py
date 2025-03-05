@@ -26,12 +26,10 @@ class SaveManager:
             'corporation_name': game_state.corporation_name,
             'fleets': [fleet.to_dict() for fleet in game_state.fleets],
             'current_fleet_id': game_state.current_fleet_id,
-            'resources': {},
-            'storage': {'capacity': 1000},
             'buildings': {name: building.level for name, building in game_state.buildings.items()}
         }
         
-        # Add resources from current fleet
+        # Add resources and storage from current fleet
         current_fleet = game_state.get_current_fleet()
         if current_fleet:
             save_data['resources'] = current_fleet.resources

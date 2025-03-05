@@ -21,7 +21,7 @@ class Fleet:
         self.level = 1
         self.mining_drones = 1  # Start with one mining drone
         self.gas_collectors = 0
-        self.storage_capacity = 1000
+        self._storage_capacity = 1000  # Base storage capacity
         self.max_drones = 2
         self.max_collectors = 1
         self.max_energy = 100
@@ -35,6 +35,16 @@ class Fleet:
         self.travel_start: Optional[datetime] = None
         self.travel_end: Optional[datetime] = None
         self.destination: Optional[str] = None
+    
+    @property
+    def storage_capacity(self) -> int:
+        """Get the current storage capacity, which scales with level"""
+        return int(self._storage_capacity * (1.5 ** (self.level - 1)))
+    
+    @storage_capacity.setter
+    def storage_capacity(self, value: int):
+        """Set the base storage capacity"""
+        self._storage_capacity = value
     
     @property
     def storage_used(self) -> int:
@@ -100,7 +110,7 @@ class Fleet:
         # Increase capabilities with level
         self.max_drones = 2 + self.level
         self.max_collectors = 1 + self.level // 2
-        self.storage_capacity = 1000 * (1.5 ** (self.level - 1))
+        self.storage_capacity = int(self._storage_capacity * (1.5 ** (self.level - 1)))
         self.max_energy = 100 * (1.2 ** (self.level - 1))
         
         # Reset upgrade status
@@ -150,11 +160,17 @@ class Fleet:
         if not self.is_traveling:
             # Mining drones collect metal
             metal_rate = 10 * self.mining_drones * dt / 3600  # per hour
-            self.add_resource('metal', metal_rate)
+            if metal_rate > 0:
+                metal_to_add = int(metal_rate)
+                if metal_to_add > 0:
+                    self.add_resource('metal', metal_to_add)
             
             # Gas collectors collect gas
             gas_rate = 8 * self.gas_collectors * dt / 3600  # per hour
-            self.add_resource('gas', gas_rate)
+            if gas_rate > 0:
+                gas_to_add = int(gas_rate)
+                if gas_to_add > 0:
+                    self.add_resource('gas', gas_to_add)
             
             # Energy regeneration (5 per hour)
             energy_rate = 5 * dt / 3600  # per hour
