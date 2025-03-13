@@ -243,7 +243,7 @@ class UniverseView(ttk.Frame):
         self.after(100, self.update_displays)
     
     def update_region_info(self):
-        """Update the region info display"""
+        """Update the region information panel"""
         if not self.selected_region:
             self.region_name.config(text="No region selected")
             self.region_coords.config(text="")
@@ -255,7 +255,7 @@ class UniverseView(ttk.Frame):
         
         # Update coordinates
         self.region_coords.config(
-            text=f"Coordinates: ({self.selected_region.x}, {self.selected_region.y})"
+            text=f"Coordinates: ({self.selected_region.position[0]}, {self.selected_region.position[1]})"
         )
         
         # Update resources

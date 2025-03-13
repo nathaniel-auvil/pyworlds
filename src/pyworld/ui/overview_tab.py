@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
+from .mining_game import MiningGame
+from .fleet_details import FleetDetailsDialog
 
 class OverviewTab(ttk.Frame):
     def __init__(self, parent, game_state):
@@ -39,6 +41,7 @@ class OverviewTab(ttk.Frame):
         ttk.Button(button_frame, text="View Details", command=self.view_fleet_details).pack(side='left', padx=5)
         ttk.Button(button_frame, text="Upgrade Ship", command=self.upgrade_ship).pack(side='left', padx=5)
         ttk.Button(button_frame, text="Buy New Ship", command=self.buy_new_ship).pack(side='left', padx=5)
+        ttk.Button(button_frame, text="Start Mining", command=self.start_mining).pack(side='left', padx=5)
     
     def create_fleet_list(self, parent):
         """Create the fleet list table"""
@@ -105,20 +108,46 @@ class OverviewTab(ttk.Frame):
             pass
     
     def view_fleet_details(self):
-        """Show detailed information about the selected fleet"""
-        selection = self.fleet_tree.selection()
-        if not selection:
+        """Open the fleet details dialog"""
+        selected = self.fleet_tree.selection()
+        if not selected:
             return
-        # Show fleet details dialog
+            
+        fleet_id = int(selected[0])
+        fleet = next((f for f in self.game_state.fleets if f.id == fleet_id), None)
+        if fleet:
+            self.game_state.set_current_fleet(fleet_id)
+            FleetDetailsDialog(self, fleet)
     
     def upgrade_ship(self):
-        """Open the ship upgrade interface"""
-        selection = self.fleet_tree.selection()
-        if not selection:
+        """Upgrade the selected ship"""
+        selected = self.fleet_tree.selection()
+        if not selected:
             return
-        # Show ship upgrade dialog
+            
+        fleet_id = int(selected[0])
+        fleet = next((f for f in self.game_state.fleets if f.id == fleet_id), None)
+        if fleet:
+            fleet.start_upgrade()
+            self.update_displays()
     
     def buy_new_ship(self):
-        """Open the interface to purchase a new ship"""
-        # Show ship purchase dialog
-        pass 
+        """Buy a new ship"""
+        # For now, just add a new freighter if we can afford it
+        if self.game_state.credits >= 5000:
+            self.game_state.credits -= 5000
+            self.game_state.add_fleet(f"Fleet {len(self.game_state.fleets) + 1}")
+            self.update_displays()
+    
+    def start_mining(self):
+        """Start the mining mini-game"""
+        selected = self.fleet_tree.selection()
+        if not selected:
+            return
+            
+        fleet_id = int(selected[0])
+        fleet = next((f for f in self.game_state.fleets if f.id == fleet_id), None)
+        
+        if fleet and not fleet.is_traveling:
+            # Launch mining game
+            MiningGame(self, fleet, callback=self.update_displays) 
