@@ -1,0 +1,28 @@
+
+
+
+The game universe is broken into multiple regions.
+    each region has differing levels of resources and threats. Initally the threats take the form of 
+    pirates which are non aligned fleets looking to steal your resources and cosmic anomalies which are 
+    unexplained random events which cause failures and even loss of ships and fleets.
+
+A region contains many star systems and a players claim includes multiple star systems.  
+
+Travel from a space station to a region requires fuel. Fuel can be purchased from a space station.
+
+Players start the game with access to one region.  They will need to be able to travel back and forth from the region
+to gather from their claim.
+
+Travel to regions takes time.  The first region should be a relatively short trip with higher levels
+regions taking more travel time.
+
+Once a fleet arrives at a region :
+    player is presented a list of all the claims you have in the region
+    a claim will span one more more star systems
+    player will first have to probe a star system to see what resources are available
+    star systems are composed of one star, one to many planets and  zero to one asteroid belts, 
+    a planet may be solid or a gas giant
+    a planet may have have zero or one moons.
+    
+
+

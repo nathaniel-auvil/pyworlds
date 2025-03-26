@@ -1,0 +1,16 @@
+
+
+A player may have one to many fleets.  
+
+The game starts with a single fleet which is composed of a freighter.  This is a bare bones ship which can be upgraded
+during the game and ultimately sold or scrapped for a better model.
+
+The starting ship has room to hold one probe, one mining ship, and one gas harvesting ship.
+
+Player starts the game with:
+    one freighter with 1000 fuel
+    one probe
+    one mining ship
+
+
+When you click on a fleet a pop up menu shoud be displayed. This menu will contain a list of 

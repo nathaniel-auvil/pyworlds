@@ -1,220 +1,215 @@
 from datetime import datetime, timedelta
-from typing import Dict, Optional
+from typing import Dict, Optional, List
+from .universe import RegionVisibility
 
 class Fleet:
-    def __init__(self, name: str, ship_type: str = "Freighter"):
-        self.id = id(self)  # Unique identifier
+    """Represents a fleet of ships"""
+    
+    def __init__(self, name: str = "Fleet"):
         self.name = name
-        self.ship_type = ship_type
-        self.current_location = "Home System"
-        
-        # Resources
+        self.level = 1
+        self.ship_type = "Explorer"
+        self.mining_drones = 1
+        self.gas_collectors = 1
+        self._storage_capacity = 1000  # Base storage capacity
         self.resources = {
             'metal': 0,
             'gas': 0,
-            'energy': 100,  # Start with full energy
-            'refined_metal': 0,
-            'refined_gas': 0
+            'energy': 0
         }
         
-        # Ship capabilities
-        self.level = 1
-        self.mining_drones = 1  # Start with one mining drone
-        self.gas_collectors = 0
-        self._storage_capacity = 1000  # Base storage capacity
-        self.max_drones = 2
-        self.max_collectors = 1
-        self.max_energy = 100
-        
-        # Upgrade status
-        self.upgrade_start: Optional[datetime] = None
-        self.upgrade_end: Optional[datetime] = None
-        
-        # Movement
-        self.is_traveling = False
-        self.travel_start: Optional[datetime] = None
-        self.travel_end: Optional[datetime] = None
-        self.destination: Optional[str] = None
-    
-    @property
-    def storage_capacity(self) -> int:
-        """Get the current storage capacity, which scales with level"""
-        return int(self._storage_capacity * (1.5 ** (self.level - 1)))
-    
-    @storage_capacity.setter
-    def storage_capacity(self, value: int):
-        """Set the base storage capacity"""
-        self._storage_capacity = value
-    
-    @property
-    def storage_used(self) -> int:
-        """Calculate total storage used by resources"""
-        return sum(amount for resource, amount in self.resources.items()
-                  if resource != 'energy')
-    
-    @property
-    def storage_available(self) -> int:
-        """Calculate remaining storage capacity"""
-        return self.storage_capacity - self.storage_used
-    
-    def get_resource_capacity(self, resource: str) -> int:
-        """Get the capacity for a specific resource"""
-        if resource == 'energy':
-            return self.max_energy
-        return self.storage_capacity
-    
-    def can_add_resource(self, resource: str, amount: int) -> bool:
-        """Check if the specified amount of resource can be added"""
-        if resource == 'energy':
-            return self.resources['energy'] + amount <= self.max_energy
-        return self.storage_used + amount <= self.storage_capacity
-    
-    def add_resource(self, resource: str, amount: int) -> int:
-        """Add resource and return amount actually added"""
-        if resource == 'energy':
-            space = self.max_energy - self.resources['energy']
-            added = min(amount, space)
-            self.resources['energy'] += added
-            return added
-        
-        space = self.storage_capacity - self.storage_used
-        added = min(amount, space)
-        self.resources[resource] = self.resources.get(resource, 0) + added
-        return added
-    
-    def remove_resource(self, resource: str, amount: int) -> int:
-        """Remove resource and return amount actually removed"""
-        available = self.resources.get(resource, 0)
-        removed = min(amount, available)
-        self.resources[resource] = available - removed
-        return removed
-    
-    def start_upgrade(self):
-        """Start upgrading the ship"""
-        if self.upgrade_start is not None:
-            return False
-        
-        self.upgrade_start = datetime.now()
-        # Base upgrade time is 5 minutes, increases with level
-        upgrade_time = timedelta(minutes=5 * (1.2 ** (self.level - 1)))
-        self.upgrade_end = self.upgrade_start + upgrade_time
-        return True
-    
-    def complete_upgrade(self):
-        """Complete the ship upgrade"""
-        if not self.upgrade_start or not self.upgrade_end:
-            return False
-        
-        self.level += 1
-        
-        # Increase capabilities with level
-        self.max_drones = 2 + self.level
-        self.max_collectors = 1 + self.level // 2
-        self.storage_capacity = int(self._storage_capacity * (1.5 ** (self.level - 1)))
-        self.max_energy = 100 * (1.2 ** (self.level - 1))
-        
-        # Reset upgrade status
-        self.upgrade_start = None
-        self.upgrade_end = None
-        return True
-    
-    def start_travel(self, destination: str, distance: float):
-        """Start traveling to a new location"""
-        if self.is_traveling:
-            return False
-        
-        self.is_traveling = True
-        self.destination = destination
-        self.travel_start = datetime.now()
-        
-        # Base travel time is 1 minute per unit of distance
-        travel_time = timedelta(minutes=distance)
-        self.travel_end = self.travel_start + travel_time
-        return True
-    
-    def complete_travel(self):
-        """Complete the travel to new location"""
-        if not self.is_traveling or not self.destination:
-            return False
-        
-        self.current_location = self.destination
-        self.is_traveling = False
+        # Travel state
+        self.current_region = None
         self.destination = None
         self.travel_start = None
         self.travel_end = None
+        self.is_traveling = False
+        
+        # Probing state
+        self.is_probing = False
+        self.probe_start = None
+        self.probe_end = None
+        self.probe_region = None
+    
+    @property
+    def storage_capacity(self) -> float:
+        """Get the storage capacity, scaled by fleet level"""
+        return self._storage_capacity * (1.0 + (self.level - 1) * 0.5)
+    
+    @property
+    def storage_used(self) -> float:
+        """Get the current storage used"""
+        return sum(self.resources.values())
+    
+    @property
+    def current_location(self) -> str:
+        """Get the name of the current location"""
+        if self.current_region:
+            return self.current_region.name
+        return "Unknown"
+    
+    def add_resource(self, resource_type: str, amount: float) -> float:
+        """Add resources to the fleet's storage, returns the amount actually added"""
+        if resource_type not in self.resources:
+            self.resources[resource_type] = 0
+            
+        # Check storage capacity
+        available_storage = self.storage_capacity - self.storage_used
+        amount_to_add = min(amount, available_storage)
+        
+        # Add resources
+        self.resources[resource_type] += amount_to_add
+        
+        return amount_to_add
+    
+    def get_resource_capacity(self, resource_type: str) -> float:
+        """Get the capacity for a specific resource"""
+        return self.storage_capacity
+    
+    def upgrade(self):
+        """Upgrade the fleet to the next level"""
+        self.level += 1
+    
+    def travel_to(self, destination, travel_hours: float = 1.0):
+        """Start traveling to a destination"""
+        if self.is_traveling:
+            raise ValueError("Fleet is already traveling")
+            
+        if self.is_probing:
+            raise ValueError("Fleet is currently probing a system")
+            
+        self.destination = destination
+        self.travel_start = datetime.now()
+        self.travel_end = self.travel_start + timedelta(hours=travel_hours)
+        self.is_traveling = True
+    
+    def complete_travel(self):
+        """Complete the travel, updating location"""
+        if not self.is_traveling:
+            return
+            
+        self.current_region = self.destination
+        self.destination = None
+        self.is_traveling = False
+        self.travel_start = None
+        self.travel_end = None
+    
+    def start_probing(self, region):
+        """Start probing a region"""
+        if self.is_traveling:
+            raise ValueError("Fleet cannot probe while traveling")
+            
+        if self.is_probing:
+            raise ValueError("Fleet is already probing")
+            
+        if region != self.current_region:
+            raise ValueError("Fleet must be in the region to probe it")
+            
+        # Calculate probe time based on region level
+        probe_hours = 0.5 * region.level  # Higher level regions take longer to probe
+        
+        self.is_probing = True
+        self.probe_region = region
+        self.probe_start = datetime.now()
+        self.probe_end = self.probe_start + timedelta(hours=probe_hours)
+    
+    def complete_probing(self):
+        """Complete the probing process"""
+        if not self.is_probing:
+            return False
+            
+        if datetime.now() < self.probe_end:
+            return False  # Not done yet
+            
+        # Mark the region as probed and discover resources
+        if self.probe_region:
+            self.probe_region.visibility = RegionVisibility.EXPLORED
+            self.probe_region.discover_deposits()
+        
+        # Reset probing state
+        self.is_probing = False
+        self.probe_region = None
+        self.probe_start = None
+        self.probe_end = None
+        
         return True
+    
+    def get_travel_progress(self) -> float:
+        """Get the progress of current travel (0-1)"""
+        if not self.is_traveling:
+            return 0.0
+            
+        now = datetime.now()
+        if now >= self.travel_end:
+            return 1.0
+            
+        total_time = (self.travel_end - self.travel_start).total_seconds()
+        elapsed_time = (now - self.travel_start).total_seconds()
+        
+        return min(1.0, elapsed_time / total_time)
+    
+    def get_probe_progress(self) -> float:
+        """Get the progress of current probing (0-1)"""
+        if not self.is_probing:
+            return 0.0
+            
+        now = datetime.now()
+        if now >= self.probe_end:
+            return 1.0
+            
+        total_time = (self.probe_end - self.probe_start).total_seconds()
+        elapsed_time = (now - self.probe_start).total_seconds()
+        
+        return min(1.0, elapsed_time / total_time)
     
     def update(self, dt: float):
         """Update the fleet state"""
-        # Check for upgrade completion
-        if (self.upgrade_start and self.upgrade_end and 
-            datetime.now() >= self.upgrade_end):
-            self.complete_upgrade()
-        
-        # Check for travel completion
-        if (self.is_traveling and self.travel_end and 
-            datetime.now() >= self.travel_end):
+        # Check if travel is complete
+        if self.is_traveling and datetime.now() >= self.travel_end:
             self.complete_travel()
-        
-        # Update resource collection
-        if not self.is_traveling:
-            # Mining drones collect metal
-            metal_rate = 10 * self.mining_drones * dt / 3600  # per hour
-            if metal_rate > 0:
-                metal_to_add = int(metal_rate)
-                if metal_to_add > 0:
-                    self.add_resource('metal', metal_to_add)
             
-            # Gas collectors collect gas
-            gas_rate = 8 * self.gas_collectors * dt / 3600  # per hour
-            if gas_rate > 0:
-                gas_to_add = int(gas_rate)
-                if gas_to_add > 0:
-                    self.add_resource('gas', gas_to_add)
-            
-            # Energy regeneration (5 per hour)
-            energy_rate = 5 * dt / 3600  # per hour
-            current_energy = self.resources.get('energy', 0)
-            self.resources['energy'] = min(
-                self.max_energy,
-                current_energy + energy_rate
-            )
-    
-    @property
-    def power_generation(self) -> float:
-        """Calculate total power generation"""
-        # Base power generation plus level bonus
-        return 100 * (1.2 ** (self.level - 1))
-    
-    @property
-    def power_usage(self) -> float:
-        """Calculate total power usage"""
-        # Each drone and collector uses 10 energy
-        return (self.mining_drones + self.gas_collectors) * 10
-    
-    @property
-    def available_power(self) -> float:
-        """Calculate available power"""
-        return self.power_generation - self.power_usage 
+        # Check if probing is complete
+        if self.is_probing and datetime.now() >= self.probe_end:
+            self.complete_probing()
 
     def to_dict(self):
         """Convert the fleet data to a dictionary for serialization."""
         return {
-            'id': self.id,
             'name': self.name,
+            'level': self.level,
             'ship_type': self.ship_type,
             'current_location': self.current_location,
             'resources': self.resources,
             'storage': {'capacity': self.storage_capacity},
-            'level': self.level
+            'travel': {
+                'is_traveling': self.is_traveling,
+                'current_region': self.current_region,
+                'destination': self.destination,
+                'travel_start': self.travel_start,
+                'travel_end': self.travel_end
+            },
+            'probing': {
+                'is_probing': self.is_probing,
+                'probe_region': self.probe_region,
+                'probe_start': self.probe_start,
+                'probe_end': self.probe_end
+            }
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Fleet':
-        fleet = cls(data['name'], data['ship_type'])
-        fleet.id = data['id']
-        fleet.current_location = data['current_location']
-        fleet.resources = data['resources']
-        fleet.storage_capacity = data['storage']['capacity']
+        fleet = cls(data['name'])
         fleet.level = data['level']
+        fleet.ship_type = data['ship_type']
+        fleet.current_region = data['travel']['current_region']
+        fleet.destination = data['travel']['destination']
+        fleet.travel_start = data['travel']['travel_start']
+        fleet.travel_end = data['travel']['travel_end']
+        fleet.is_traveling = data['travel']['is_traveling']
+        fleet.probe_region = data['probing']['probe_region']
+        fleet.probe_start = data['probing']['probe_start']
+        fleet.probe_end = data['probing']['probe_end']
+        fleet.is_probing = data['probing']['is_probing']
+        fleet.resources = data['resources']
+        fleet._storage_capacity = data['storage']['capacity']
         return fleet 

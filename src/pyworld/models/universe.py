@@ -2,17 +2,25 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import random
 import math
+from enum import Enum
+
+class RegionVisibility(Enum):
+    UNEXPLORED = "unexplored"
+    EXPLORED = "explored"
+    VISIBLE = "visible"
 
 class ResourceDeposit:
-    def __init__(self, resource_type: str, base_amount: float, quality: float = 1.0):
+    """Represents a resource deposit in a region"""
+    
+    def __init__(self, resource_type: str, amount: float, quality: float):
         self.resource_type = resource_type
-        self.base_amount = base_amount
-        self.quality = quality  # Multiplier for collection rate
-        self.discovered = False
+        self.amount = amount
+        self.quality = quality  # Higher quality = more efficient extraction
+        self.discovered = False  # Whether this deposit has been discovered
         
     def collection_rate(self, collector_level: int) -> float:
         """Calculate collection rate based on deposit quality and collector level"""
-        return self.base_amount * self.quality * (1.1 ** (collector_level - 1))
+        return self.amount * self.quality * (1.1 ** (collector_level - 1))
     
     @property
     def display_name(self) -> str:
@@ -22,7 +30,7 @@ class ResourceDeposit:
     @property
     def base_collection_rate(self) -> float:
         """Get the base collection rate without any level modifiers"""
-        return self.base_amount * self.quality
+        return self.amount * self.quality
 
 class ResourceGrant:
     def __init__(self, deposit, corporation, duration_seconds):
@@ -49,6 +57,43 @@ class ResourceGrant:
         elapsed = datetime.now() - self.start_time
         return min(1.0, elapsed.total_seconds() / self.duration.total_seconds())
 
+class RegionClaim:
+    """Represents a claim on a region"""
+    
+    def __init__(self, region, duration=timedelta(hours=24), corporation=None):
+        self.region = region
+        self.duration = duration
+        self.corporation = corporation
+        self.claimed_at = None
+        self.expiry = None
+        
+    def activate(self, corporation):
+        """Activate this claim for the given corporation"""
+        self.corporation = corporation
+        self.claimed_at = datetime.now()
+        self.expiry = self.claimed_at + self.duration
+        
+    def is_active(self):
+        """Check if this claim is currently active"""
+        if not self.claimed_at:
+            return False
+            
+        return datetime.now() < self.expiry
+        
+    def time_remaining(self):
+        """Get the time remaining on this claim"""
+        if not self.is_active():
+            return timedelta(0)
+            
+        return self.expiry - datetime.now()
+        
+    def is_expired(self):
+        """Check if this claim has expired"""
+        if not self.claimed_at:
+            return False
+            
+        return datetime.now() >= self.expiry
+
 class Region:
     def __init__(self, name: str, level: int, position: tuple[int, int]):
         self.name = name
@@ -58,6 +103,7 @@ class Region:
         self.grants: List[ResourceGrant] = []
         self.controlling_corporation = "Stellar Industries"
         self.connections: List['Region'] = []
+        self.visibility = RegionVisibility.UNEXPLORED
         
         # Generate resource deposits based on region level
         # Only generate deposits if this is not a test region
@@ -119,15 +165,22 @@ class Region:
         """Get a list of deposits that are discovered but not granted"""
         granted_deposits = {g.deposit for g in self.get_active_grants()}
         return [d for d in self.get_discovered_deposits() if d not in granted_deposits]
+        
+    def discover_deposits(self):
+        """Discover all deposits in the region"""
+        for deposit in self.deposits:
+            deposit.discovered = True
 
 class Universe:
     def __init__(self):
         self.regions = {}
+        self.connections = {}  # Initialize connections first
         self.home_region = self.create_home_region()
         self._generate_regions()
     
     def create_home_region(self):
         home = Region("Home", 1, (0, 0))
+        home.visibility = RegionVisibility.EXPLORED  # Home region starts explored
         self.regions[home.name] = home
         return home
 
@@ -139,6 +192,7 @@ class Universe:
             level=1,
             position=(0, 0)
         )
+        starter_region.visibility = RegionVisibility.EXPLORED  # Starter region starts explored
         self.regions[starter_region.name] = starter_region
         
         # Create surrounding regions
@@ -160,6 +214,60 @@ class Universe:
                 if other != region and region.distance_to(other) <= 3:
                     region.connections.append(other)
                     other.connections.append(region)
+        
+        # Generate connections between regions
+        self._generate_connections()
+    
+    def _generate_connections(self):
+        """Generate connections between regions"""
+        # Clear existing connections
+        self.connections.clear()
+        
+        # Initialize connections dictionary for each region
+        for region in self.regions.values():
+            self.connections[region] = set()
+        
+        # Generate new connections
+        for region in self.regions.values():
+            # Get all other regions
+            other_regions = [r for r in self.regions.values() if r != region]
+            
+            # Connect to 2-4 nearby regions
+            num_connections = random.randint(2, 4)
+            connected_regions = random.sample(other_regions, min(num_connections, len(other_regions)))
+            
+            # Add bidirectional connections
+            for connected_region in connected_regions:
+                self.connections[region].add(connected_region)
+                self.connections[connected_region].add(region)
+    
+    def get_connected_regions(self, region):
+        """Get all regions connected to the given region"""
+        return self.connections.get(region, set())
+    
+    def is_connected(self, region1, region2):
+        """Check if two regions are connected"""
+        return region2 in self.connections.get(region1, set())
+    
+    def get_path_to_region(self, start_region, target_region):
+        """Find a path from start_region to target_region using BFS"""
+        if start_region == target_region:
+            return [start_region]
+            
+        queue = [(start_region, [start_region])]
+        visited = {start_region}
+        
+        while queue:
+            current, path = queue.pop(0)
+            
+            for neighbor in self.get_connected_regions(current):
+                if neighbor == target_region:
+                    return path + [neighbor]
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append((neighbor, path + [neighbor]))
+        
+        return None  # No path found
     
     def update(self):
         """Update all regions"""
@@ -169,10 +277,6 @@ class Universe:
     def get_region(self, region_name: str) -> Optional[Region]:
         """Get a region by name"""
         return self.regions.get(region_name)
-    
-    def get_connected_regions(self, region: Region) -> List[Region]:
-        """Get a list of regions connected to the given region"""
-        return region.connections
     
     def get_regions_by_level(self, min_level: int, max_level: int) -> List[Region]:
         """Get a list of regions within the specified level range"""

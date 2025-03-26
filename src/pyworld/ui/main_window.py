@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from .station_view import StationView
 from .universe_view import UniverseView
 from .overview_tab import OverviewTab
+from .claims_view import ClaimsView
 
 class MainWindow(tk.Tk):
     def __init__(self, game_state):
@@ -44,6 +45,10 @@ class MainWindow(tk.Tk):
         # Create station view
         self.station_view = StationView(self.notebook, self.game_state)
         self.notebook.add(self.station_view, text="Space Station")
+        
+        # Create claims view
+        self.claims_view = ClaimsView(self.notebook, self.game_state)
+        self.notebook.add(self.claims_view, text="Claims")
         
         # Create status bar
         self.status_bar = ttk.Label(self, text="", relief='sunken')

@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Dict, Optional
 from .ship import Mothership
 from .station import SpaceStation
-from .universe import Universe
+from .universe import Universe, Region, RegionClaim
 from .fleet import Fleet
 
 class Building:
@@ -34,22 +34,34 @@ class Building:
         return self.base_build_time * (1.2 ** self.level)
 
 class GameState:
+    """Main game state class"""
+    
     def __init__(self):
-        self.corporation_name = "New Corporation"
-        self.credits = 1000
+        """Initialize game state"""
+        # Corporation info
+        self.corporation_name = "Nova Mining Corp"
+        self.credits = 10000
         self.total_assets = self.credits
         
-        # Initialize universe
+        # Universe
         self.universe = Universe()
         self.current_region = self.universe.home_region
         
+        # Fleet management
+        self.fleets: List[Fleet] = []
+        self.selected_fleet = None
+        self.add_starting_fleet()
+        
+        # Claims
+        self.available_claims: List[RegionClaim] = []
+        self.active_claims: List[RegionClaim] = []
+        self._generate_initial_claims()
+        
+        # Time management
+        self._last_asset_update = datetime.now()
+        
         # Initialize station
         self.station = SpaceStation()
-        
-        # Initialize fleets with a starting freighter
-        self.fleets: List[Fleet] = []
-        self.current_fleet_id: Optional[int] = None
-        self.add_starting_fleet()
         
         # Game state
         self.is_traveling = False
@@ -96,27 +108,23 @@ class GameState:
         }
         
         self.game_speed = 1.0  # Default game speed
-        self._last_asset_update = datetime.now()
     
     def add_starting_fleet(self):
         """Add the starting freighter fleet"""
         fleet = Fleet("Fleet Alpha")
+        fleet.current_region = self.current_region  # Set the current region
         self.fleets.append(fleet)
-        self.current_fleet_id = fleet.id
+        self.selected_fleet = fleet
     
     def get_current_fleet(self) -> Optional[Fleet]:
         """Get the currently selected fleet"""
-        if self.current_fleet_id is None:
-            return None
-        return next(
-            (f for f in self.fleets if f.id == self.current_fleet_id),
-            None
-        )
+        return self.selected_fleet
     
     def set_current_fleet(self, fleet_id: int) -> bool:
         """Set the current fleet by ID"""
-        if any(f.id == fleet_id for f in self.fleets):
-            self.current_fleet_id = fleet_id
+        fleet = next((f for f in self.fleets if f.id == fleet_id), None)
+        if fleet:
+            self.selected_fleet = fleet
             return True
         return False
     
@@ -131,18 +139,61 @@ class GameState:
         fleet = next((f for f in self.fleets if f.id == fleet_id), None)
         if fleet:
             self.fleets.remove(fleet)
-            if self.current_fleet_id == fleet_id:
-                self.current_fleet_id = self.fleets[0].id if self.fleets else None
+            if self.selected_fleet == fleet:
+                self.selected_fleet = self.fleets[0] if self.fleets else None
             return True
         return False
     
+    def _generate_initial_claims(self):
+        """Generate initial available claims"""
+        # Clear existing claims
+        self.available_claims.clear()
+        
+        # Create claims for unexplored regions
+        for region in self.universe.get_regions_by_level(1, 3):
+            if region != self.universe.home_region:
+                claim = RegionClaim(region, duration=timedelta(hours=24))
+                self.available_claims.append(claim)
+    
+    def get_available_claims(self) -> List[RegionClaim]:
+        """Get a list of available claims"""
+        return self.available_claims
+    
+    def get_active_claims(self) -> List[RegionClaim]:
+        """Get a list of active claims"""
+        # Remove expired claims
+        self.active_claims = [c for c in self.active_claims if not c.is_expired()]
+        return self.active_claims
+    
+    def claim_system(self, claim: RegionClaim) -> bool:
+        """Claim a system"""
+        # Check if claim is available
+        if claim not in self.available_claims:
+            raise ValueError("This claim is not available.")
+        
+        # Check if player has reached claim limit
+        if len(self.active_claims) >= 1:  # Starting limit is 1 claim
+            raise ValueError("You can only have one active claim at a time.")
+        
+        # Activate the claim
+        claim.activate(self.corporation_name)
+        
+        # Move from available to active
+        self.available_claims.remove(claim)
+        self.active_claims.append(claim)
+        
+        return True
+
     def update(self, dt: float):
         """Update game state"""
-        # Update all fleets
+        # Update universe
+        self.universe.update()
+        
+        # Update fleets
         for fleet in self.fleets:
             fleet.update(dt)
         
-        # Only update total assets every second
+        # Update total assets periodically (once per second)
         now = datetime.now()
         if (now - self._last_asset_update).total_seconds() >= 1.0:
             self.update_total_assets()

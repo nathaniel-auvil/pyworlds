@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import timedelta
 from typing import Dict, Optional
+from ..models.universe import RegionVisibility
 
 class RegionCanvas(tk.Canvas):
     def __init__(self, parent, region, **kwargs):
@@ -159,6 +160,15 @@ class UniverseView(ttk.Frame):
         self.region_resources = ttk.Label(self.region_frame, text="")
         self.region_resources.pack(anchor='w')
         
+        # Scan button
+        self.scan_button = ttk.Button(
+            self.region_frame, 
+            text="Scan Region",
+            command=self.scan_region
+        )
+        self.scan_button.pack(pady=5)
+        self.scan_button['state'] = 'disabled'
+        
         # Travel info
         self.travel_frame = ttk.LabelFrame(self.info_panel, text="Travel", padding="5")
         self.travel_frame.pack(fill='x', pady=5)
@@ -209,14 +219,19 @@ class UniverseView(ttk.Frame):
         # Draw regions
         for region_name, region in self.game_state.universe.regions.items():
             # Calculate screen position
-            x = center_x + (len(region_name) % 5) * grid_size  # Simple layout algorithm
-            y = center_y + (len(region_name) // 5) * grid_size
+            x = center_x + region.position[0] * grid_size
+            y = center_y + region.position[1] * grid_size
             
             # Draw region circle
             radius = 10 * self.zoom
-            color = '#00ff00' if region == self.game_state.current_region else '#ffffff'
-            if region == self.selected_region:
-                color = '#ffff00'
+            if region.visibility == RegionVisibility.UNEXPLORED:
+                color = '#666666'  # Gray for unexplored
+            elif region == self.game_state.current_region:
+                color = '#00ff00'  # Green for current region
+            elif region == self.selected_region:
+                color = '#ffff00'  # Yellow for selected
+            else:
+                color = '#ffffff'  # White for explored
             
             self.canvas.create_oval(
                 x - radius, y - radius,
@@ -233,6 +248,18 @@ class UniverseView(ttk.Frame):
                 font=('TkDefaultFont', int(8 * self.zoom)),
                 tags=('region_name', region_name)
             )
+            
+            # Draw connections
+            for connected_region in region.connections:
+                if connected_region.name > region.name:  # Draw each connection only once
+                    cx = center_x + connected_region.position[0] * grid_size
+                    cy = center_y + connected_region.position[1] * grid_size
+                    self.canvas.create_line(
+                        x, y, cx, cy,
+                        fill='#333333',
+                        width=1,
+                        tags='connection'
+                    )
     
     def update_displays(self):
         """Update all displays"""
@@ -280,6 +307,7 @@ class UniverseView(ttk.Frame):
                 region_name = tags[1]
                 self.selected_region = self.game_state.universe.regions[region_name]
                 self.update_region_info()
+                self.update_ui()  # Update UI to enable/disable buttons
     
     def on_drag(self, event):
         """Handle mouse drag events"""
@@ -329,4 +357,68 @@ class UniverseView(ttk.Frame):
             "Travel Started",
             f"Beginning journey to {self.selected_region.name}.\n"
             f"Estimated arrival in {timedelta(hours=distance)}."
-        ) 
+        )
+
+    def _is_region_scannable(self, region):
+        """Check if a region can be scanned"""
+        if region.visibility != RegionVisibility.UNEXPLORED:
+            print(f"Region {region.name} not scannable: already {region.visibility}")
+            return False
+            
+        # Check if region is connected to any explored region
+        for neighbor in self.game_state.universe.get_connected_regions(region):
+            if neighbor.visibility == RegionVisibility.EXPLORED:
+                print(f"Region {region.name} is connected to explored region {neighbor.name}")
+                return True
+                
+        print(f"Region {region.name} not scannable: no connection to explored regions")
+        return False
+
+    def scan_region(self):
+        """Scan the selected region"""
+        if not self.selected_region:
+            return
+            
+        # Check if region is scannable
+        if not self._is_region_scannable(self.selected_region):
+            messagebox.showerror(
+                "Cannot Scan",
+                "This region cannot be scanned. It must be connected to an explored region."
+            )
+            return
+            
+        # Perform scan
+        self.selected_region.visibility = RegionVisibility.EXPLORED
+        self.selected_region.discover_deposits()
+        
+        # Update UI
+        self.update_ui()
+        self.draw_map()
+        
+        messagebox.showinfo(
+            "Scan Complete",
+            f"Region {self.selected_region.name} has been scanned and explored."
+        )
+
+    def update_ui(self):
+        """Update the UI elements based on current state."""
+        if self.selected_region:
+            print(f"Selected region: {self.selected_region.name}")
+            print(f"Region visibility: {self.selected_region.visibility}")
+            print(f"Is scannable: {self._is_region_scannable(self.selected_region)}")
+            
+            # Update scan button state
+            if self._is_region_scannable(self.selected_region):
+                self.scan_button.config(state=tk.NORMAL)
+            else:
+                self.scan_button.config(state=tk.DISABLED)
+                
+            # Update travel button state
+            if self.selected_region != self.game_state.current_region:
+                self.travel_button.config(state=tk.NORMAL)
+            else:
+                self.travel_button.config(state=tk.DISABLED)
+        else:
+            print("No region selected")
+            self.scan_button.config(state=tk.DISABLED)
+            self.travel_button.config(state=tk.DISABLED) 

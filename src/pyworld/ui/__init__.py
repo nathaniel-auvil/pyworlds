@@ -4,6 +4,7 @@ from .station_view import StationView
 from .overview_tab import OverviewTab
 from .fleet_details import FleetDetailsDialog
 from .mining_game import MiningGame
+from .claims_view import ClaimsView
 
 __all__ = [
     'MainWindow',
@@ -11,5 +12,6 @@ __all__ = [
     'StationView',
     'OverviewTab',
     'FleetDetailsDialog',
-    'MiningGame'
+    'MiningGame',
+    'ClaimsView'
 ] 
