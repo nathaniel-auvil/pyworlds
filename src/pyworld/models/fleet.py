@@ -6,6 +6,7 @@ class Fleet:
     """Represents a fleet of ships"""
     
     def __init__(self, name: str = "Fleet"):
+        self.id = id(self)  # Use object's memory address as ID
         self.name = name
         self.level = 1
         self.ship_type = "Explorer"
@@ -106,7 +107,8 @@ class Fleet:
             raise ValueError("Fleet must be in the region to probe it")
             
         # Calculate probe time based on region level
-        probe_hours = 0.5 * region.level  # Higher level regions take longer to probe
+        # Level 1 = 10 seconds, Level 2 = 20 seconds, etc.
+        probe_hours = (10 * region.level) / 3600  # Convert seconds to hours
         
         self.is_probing = True
         self.probe_region = region
@@ -125,6 +127,14 @@ class Fleet:
         if self.probe_region:
             self.probe_region.visibility = RegionVisibility.EXPLORED
             self.probe_region.discover_deposits()
+            
+            # Calculate extraction time estimates
+            extraction_times = {}
+            for deposit in self.probe_region.deposits:
+                # Base extraction time is 1 hour per 1000 units
+                base_time = deposit.amount / 1000
+                # Higher level systems take longer to extract from
+                extraction_times[deposit.resource_type] = base_time * (1 + (self.probe_region.level - 1) * 0.5)
         
         # Reset probing state
         self.is_probing = False
