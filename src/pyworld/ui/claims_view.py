@@ -174,7 +174,7 @@ class ClaimsView(ttk.Frame):
             return
         
         # Calculate travel time based on system level
-        travel_hours = claim.region.level  # Higher level = longer travel time
+        travel_hours = 1/60 * claim.region.level  # Level 1 = 1 minute, Level 2 = 2 minutes, etc.
         
         # Send fleet to claimed system
         try:
@@ -182,7 +182,7 @@ class ClaimsView(ttk.Frame):
             messagebox.showinfo(
                 "Fleet Dispatched",
                 f"Your fleet has been dispatched to {system_name}. " +
-                f"Estimated arrival in {travel_hours} hours."
+                f"Estimated arrival in {travel_hours * 60:.0f} minutes."
             )
         except Exception as e:
             messagebox.showerror("Travel Failed", str(e))
