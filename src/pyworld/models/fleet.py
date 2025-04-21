@@ -11,7 +11,9 @@ class Fleet:
         self.level = 1
         self.ship_type = "Explorer"
         self.mining_drones = 1
+        self.max_drones = 1  # Base maximum number of mining drones
         self.gas_collectors = 1
+        self.max_collectors = 1  # Base maximum number of gas collectors
         self._storage_capacity = 1000  # Base storage capacity
         self.resources = {
             'metal': 0,
@@ -31,6 +33,10 @@ class Fleet:
         self.probe_start = None
         self.probe_end = None
         self.probe_region = None
+        
+        # Upgrade state
+        self.upgrade_start = None
+        self.upgrade_end = None
     
     @property
     def storage_capacity(self) -> float:
@@ -145,32 +151,30 @@ class Fleet:
         return True
     
     def get_travel_progress(self) -> float:
-        """Get the progress of current travel (0-1)"""
-        if not self.is_traveling:
+        """Get the progress of travel as a float between 0 and 1"""
+        if not self.is_traveling or not self.travel_start or not self.travel_end:
             return 0.0
-            
-        now = datetime.now()
-        if now >= self.travel_end:
-            return 1.0
-            
-        total_time = (self.travel_end - self.travel_start).total_seconds()
-        elapsed_time = (now - self.travel_start).total_seconds()
         
-        return min(1.0, elapsed_time / total_time)
+        total_time = (self.travel_end - self.travel_start).total_seconds()
+        elapsed_time = (datetime.now() - self.travel_start).total_seconds()
+        
+        if total_time <= 0:
+            return 1.0
+        
+        return min(1.0, max(0.0, elapsed_time / total_time))
     
     def get_probe_progress(self) -> float:
-        """Get the progress of current probing (0-1)"""
-        if not self.is_probing:
+        """Get the progress of probing as a float between 0 and 1"""
+        if not self.is_probing or not self.probe_start or not self.probe_end:
             return 0.0
-            
-        now = datetime.now()
-        if now >= self.probe_end:
-            return 1.0
-            
-        total_time = (self.probe_end - self.probe_start).total_seconds()
-        elapsed_time = (now - self.probe_start).total_seconds()
         
-        return min(1.0, elapsed_time / total_time)
+        total_time = (self.probe_end - self.probe_start).total_seconds()
+        elapsed_time = (datetime.now() - self.probe_start).total_seconds()
+        
+        if total_time <= 0:
+            return 1.0
+        
+        return min(1.0, max(0.0, elapsed_time / total_time))
     
     def update(self, dt: float):
         """Update the fleet state"""
@@ -203,6 +207,10 @@ class Fleet:
                 'probe_region': self.probe_region,
                 'probe_start': self.probe_start,
                 'probe_end': self.probe_end
+            },
+            'upgrade': {
+                'upgrade_start': self.upgrade_start,
+                'upgrade_end': self.upgrade_end
             }
         }
 
@@ -222,4 +230,13 @@ class Fleet:
         fleet.is_probing = data['probing']['is_probing']
         fleet.resources = data['resources']
         fleet._storage_capacity = data['storage']['capacity']
+        
+        # Set default values for max_drones and max_collectors if not present
+        fleet.max_drones = data.get('max_drones', 1)
+        fleet.max_collectors = data.get('max_collectors', 1)
+        
+        # Set upgrade state
+        fleet.upgrade_start = data.get('upgrade', {}).get('upgrade_start')
+        fleet.upgrade_end = data.get('upgrade', {}).get('upgrade_end')
+        
         return fleet 
